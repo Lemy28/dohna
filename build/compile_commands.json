@@ -1,0 +1,19 @@
+[
+{
+  "directory": "/mnt/e/dohna/build",
+  "command": "/usr/bin/clang++   -I../tools/include  -g   -std=c++14 -o CMakeFiles/test.dir/test.cpp.o -c /mnt/e/dohna/test.cpp",
+  "file": "/mnt/e/dohna/test.cpp"
+},
+
+{
+  "directory": "/mnt/e/dohna/build",
+  "command": "/usr/bin/clang++   -I../tools/include  -g   -std=c++14 -o tools/CMakeFiles/tools.dir/src/ProcessTitle.cpp.o -c /mnt/e/dohna/tools/src/ProcessTitle.cpp",
+  "file": "/mnt/e/dohna/tools/src/ProcessTitle.cpp"
+},
+
+{
+  "directory": "/mnt/e/dohna/build",
+  "command": "/usr/bin/clang++   -I../tools/include  -g   -std=c++14 -o tools/CMakeFiles/tools.dir/src/config.cpp.o -c /mnt/e/dohna/tools/src/config.cpp",
+  "file": "/mnt/e/dohna/tools/src/config.cpp"
+}
+]

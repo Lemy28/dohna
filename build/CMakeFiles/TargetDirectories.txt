@@ -1,0 +1,6 @@
+/mnt/e/dohna/build/CMakeFiles/rebuild_cache.dir
+/mnt/e/dohna/build/CMakeFiles/edit_cache.dir
+/mnt/e/dohna/build/CMakeFiles/test.dir
+/mnt/e/dohna/build/tools/CMakeFiles/rebuild_cache.dir
+/mnt/e/dohna/build/tools/CMakeFiles/edit_cache.dir
+/mnt/e/dohna/build/tools/CMakeFiles/tools.dir
