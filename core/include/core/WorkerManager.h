@@ -11,7 +11,6 @@ public:
 
     void run() {
         // 子进程具体执行的逻辑
-
         Logger &logger = Logger::getInstance();
         logger.Log(LogLevel::Info,"Child process running with pid: %d \n",getpid());
         sleep(999999);

@@ -4,6 +4,9 @@
 #include <unistd.h>
 #include <tools/ProcessTitle.h>
 #include <sys/prctl.h>
+#include <stdio.h>
+#include <core/DohnaServerGlobal.h>
+
 
 
 
@@ -11,7 +14,6 @@ WorkerManager& WorkerManager::getInstance(){
     static WorkerManager wm;
     return wm;
 }
-
 
 
 void WorkerManager::createWorker()
@@ -24,17 +26,16 @@ void WorkerManager::createWorker()
         sigemptyset(&set);  //清空信号集
         if (sigprocmask(SIG_SETMASK, &set, NULL) == -1)  //原来是屏蔽那10个信号【防止fork()期间收到信号导致混乱】，现在不再屏蔽任何信号【接收任何信号】
         {
-            Logger::getInstance().Log(LogLevel::Error,"Child process faied to reset sigset with pid:%d",getpid());
+            Logger::getInstance().Log(LogLevel::Error,"Child process failed to reset sigset with pid:%d",getpid());
         }
-
-            prctl(PR_SET_NAME,"dohna:worker process",0,0,0);
+            ProcessTitle title(g_os_argc,g_os_argv,environ);
+            title.setProcTitle("dohna:worker");
 
             ChildProcess childProcess;
             childProcess.run();
         }
         else if (pid > 0) {
             Logger &logger = Logger::getInstance();
-            logger.Log(LogLevel::Info,"Created child process with pid: %d \n",getpid());
         }
         else {
             Logger &logger = Logger::getInstance();
@@ -45,11 +46,12 @@ void WorkerManager::createWorker()
 WorkerManager::WorkerManager()
 {
     ConfigManager &cm = ConfigManager::getInstance();
-    if(cm.loadConfig("dohna.conf")){
-        Logger &logger = Logger::getInstance();
-        logger.Log(LogLevel::Error,"Erorr loading config:dohna.conf");
+    if(!cm.loadConfig("/etc/dohna.conf")){
+        perror("ConfigManager:failed to load file:'/etc/dohna.conf' ");
+        exit(-1);
     }
 
+    // std::cout<<"wokerCount:"<<cm.getInt("workerProcesses") <<std::endl;
     workerProcesses_ = cm.getInt("workerProcesses");
 
 }
@@ -70,22 +72,39 @@ void WorkerManager::run(){
     sigaddset(&set, SIGWINCH);    //终端窗口大小改变
     sigaddset(&set, SIGTERM);     //终止
     sigaddset(&set, SIGQUIT);     //终端退出符
-    //.........可以根据开发的实际需要往其中添加其他要屏蔽的信号......
+    // .........可以根据开发的实际需要往其中添加其他要屏蔽的信号......
 
-     //屏蔽信号;
+    //  屏蔽信号;
     if (sigprocmask(SIG_BLOCK, &set, NULL) == -1) //第一个参数用了SIG_BLOCK表明设置 进程 新的信号屏蔽字 为 “当前信号屏蔽字 和 第二个参数指向的信号集的并集
     {        
-        Logger::getInstance().Log(LogLevel::Error,"master process faied to block signal");
+        Logger::getInstance().Log(LogLevel::Error,"master process failed to block signal");
     }
 
+    //设置进程标题
+    ProcessTitle title(g_os_argc,g_os_argv,environ);
+    title.setProcTitle("dohna:master");
 
     //创建子线程
     for(int i = workerProcesses_;i>0;i--){
+        // std::cout<<"creating worker"<<std::endl;
         createWorker();
     }
 
+    sigemptyset(&set);  //清空信号集
+    if (sigprocmask(SIG_SETMASK, &set, NULL) == -1)  //原来是屏蔽那10个信号【防止fork()期间收到信号导致混乱】，现在不再屏蔽任何信号【接收任何信号】
+    {
+        Logger::getInstance().Log(LogLevel::Error,"Master process failed to reset sigset");
+    }
 
-    sleep(999999);
+
+    //处理信号
+    SignalManager sm;
+    sm.RegisterSignal(Signal(SIGINT,"SIGINT",[](int,siginfo_t *,void *){std::cout<<"Handling SIG_INT"<<std::endl;}));
+    sm.RegisterSignal(Signal(SIGHUP,"SIGHUP",[](int,siginfo_t *,void *){std::cout<<"Handling SIG_INT"<<std::endl;}));
+
+    sm.HandleSignals();
+
+
 
 }
 
