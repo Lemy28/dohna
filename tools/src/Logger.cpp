@@ -2,9 +2,23 @@
 #include <stdarg.h>
 
 
-Logger& Logger::getInstance(const std::string& logfile, LogLevel loglevel) {
+Logger& Logger::getInstance(LogLevel loglevel,const std::string& logfile) {
     static Logger logger(logfile,loglevel);
     return logger;
+}
+
+void Logger::Log(const char* msg,LogLevel logLevel){
+    if (logLevel >= m_logLevel){
+        std::lock_guard<std::mutex> lock(m_mutex);
+        std::ofstream ofs(m_logFile,std::ios::app);
+        if (ofs.is_open()){
+            ofs<<GetFormattedTime()<<" ["<<LogLevelString(m_logLevel)<<"] "<<msg<<std::endl;
+        }
+        else{
+            std::cerr<<"Error:failed to open log file"<<std::endl;
+        }
+        ofs.close();
+    }
 }
 
 void Logger::Log(LogLevel logLevel, const char* format, ...) {

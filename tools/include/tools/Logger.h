@@ -17,14 +17,10 @@ enum class LogLevel {
 class Logger {
 public:
 
-    static Logger& getInstance(const std::string& logFile="./dohna.log", LogLevel logLevel = LogLevel::Info);
+    static Logger& getInstance( LogLevel logLevel = LogLevel::Info,const std::string& logFile="./dohna.log");
     void Log(LogLevel logLevel, const char* format, ...);
+    void Log(const char* format,LogLevel logLevel = LogLevel::Info); 
 
-    Logger& operator<<(const std::string msg) {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        Log(m_logLevel, "%s",msg.c_str());
-        return *this;
-    }
 
 
     Logger(const Logger&) = delete;
