@@ -17,9 +17,10 @@ enum class LogLevel {
 class Logger {
 public:
 
-    static Logger& getInstance( LogLevel logLevel = LogLevel::Info,const std::string& logFile="./dohna.log");
+    static Logger& getInstance(const std::string& logFile="./dohna.log");
     void Log(LogLevel logLevel, const char* format, ...);
-    void Log(const char* format,LogLevel logLevel = LogLevel::Info); 
+    void LogError(const char* format);
+    void LogInfo(const char* format);
 
 
 

@@ -1,6 +1,7 @@
 #pragma once
 #include <unistd.h>
 
+namespace dohna{
 
 class DohnaServer
 {
@@ -17,3 +18,5 @@ public:
     void stop();
 
 };
+
+}

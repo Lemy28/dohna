@@ -4,27 +4,13 @@
 #include <unistd.h>
 #include <tools/Logger.h>
 
-class ChildProcess {
-public:
-    ChildProcess() {}
-    virtual ~ChildProcess() {}
-
-    void run() {
-        // 子进程具体执行的逻辑
-        Logger &logger = Logger::getInstance();
-        logger.Log(LogLevel::Info,"Child process running with pid: %d \n",getpid());
-        sleep(999999);
-        // 子进程执行完毕后，通过退出码通知父进程
-        exit(0);
-    }
-};
-
-
+namespace dohna
+{
 class WorkerManager
 {
 
 private:
-    int workerProcesses_;
+    int m_workerProcesses;
 
 public:
 
@@ -40,3 +26,5 @@ private:
     ~WorkerManager();
 };
 
+
+}

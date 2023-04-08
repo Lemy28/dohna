@@ -6,8 +6,9 @@
 #include <sys/prctl.h>
 #include <stdio.h>
 #include <core/DohnaServerGlobal.h>
+#include <core/Worker.h>
 
-
+namespace dohna{
 
 
 WorkerManager& WorkerManager::getInstance(){
@@ -21,27 +22,26 @@ void WorkerManager::createWorker()
         pid_t pid = fork();
         if (pid == 0) {
             //子进程
-
-        sigset_t  set;      //信号集
-        sigemptyset(&set);  //清空信号集
-        if (sigprocmask(SIG_SETMASK, &set, NULL) == -1)  //原来是屏蔽那10个信号【防止fork()期间收到信号导致混乱】，现在不再屏蔽任何信号【接收任何信号】
-        {
-            Logger::getInstance().Log(LogLevel::Error,"Child process failed to reset sigset with pid:%d",getpid());
-        }
-            ProcessTitle title(g_os_argc,g_os_argv,environ);
-            title.setProcTitle("dohna:worker");
-
-            ChildProcess childProcess;
-            childProcess.run();
-        }
+            sigset_t  set;      //信号集
+            sigemptyset(&set);  //清空信号集
+            if (sigprocmask(SIG_SETMASK, &set, NULL) == -1)
+            {
+                Logger::getInstance().Log(LogLevel::Error,"Child process failed to reset sigset with pid:%d",getpid());
+            }
+                Worker worker;
+                // Logger::getInstance().Log(LogLevel::Debug,"worker will run!!!");
+                worker.run();
+            }
         else if (pid > 0) {
-            Logger &logger = Logger::getInstance();
+            //父进程
+            // Logger &logger = Logger::getInstance();
+            // logger.Log(LogLevel::Info,"Create child process with pid:%d",pid);
         }
         else {
             Logger &logger = Logger::getInstance();
             logger.Log(LogLevel::Error,"Error creating child process\n");
         }
-    }
+}
 
 WorkerManager::WorkerManager()
 {
@@ -51,8 +51,7 @@ WorkerManager::WorkerManager()
         exit(-1);
     }
 
-    // std::cout<<"wokerCount:"<<cm.getInt("workerProcesses") <<std::endl;
-    workerProcesses_ = cm.getInt("workerProcesses");
+    m_workerProcesses = cm.getInt("workerProcesses");
 
 }
 
@@ -85,8 +84,7 @@ void WorkerManager::run(){
     title.setProcTitle("dohna:master");
 
     //创建子线程
-    for(int i = workerProcesses_;i>0;i--){
-        // std::cout<<"creating worker"<<std::endl;
+    for(int i = m_workerProcesses;i>0;i--){
         createWorker();
     }
 
@@ -104,11 +102,11 @@ void WorkerManager::run(){
 
     sm.HandleSignals();
 
-
-
 }
 
 
 WorkerManager::~WorkerManager()
 {
+}
+
 }

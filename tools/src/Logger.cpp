@@ -1,25 +1,25 @@
 #include <tools/Logger.h>
 #include <stdarg.h>
+#include <tools/ConfigManager.h>
 
 
-Logger& Logger::getInstance(LogLevel loglevel,const std::string& logfile) {
-    static Logger logger(logfile,loglevel);
+Logger& Logger::getInstance(const std::string& logfile) {
+    ConfigManager& cm = ConfigManager::getInstance();
+    cm.loadConfig("/etc/dohna.conf");
+    //根据配置文件中的loglevel来初始化logger
+    static Logger logger(logfile, static_cast<LogLevel>(cm.getInt("logLevel")));
     return logger;
 }
 
-void Logger::Log(const char* msg,LogLevel logLevel){
-    if (logLevel >= m_logLevel){
-        std::lock_guard<std::mutex> lock(m_mutex);
-        std::ofstream ofs(m_logFile,std::ios::app);
-        if (ofs.is_open()){
-            ofs<<GetFormattedTime()<<" ["<<LogLevelString(m_logLevel)<<"] "<<msg<<std::endl;
-        }
-        else{
-            std::cerr<<"Error:failed to open log file"<<std::endl;
-        }
-        ofs.close();
-    }
+
+void Logger::LogError(const char* format){
+    Log(LogLevel::Error,format);
 }
+
+void Logger::LogInfo(const char* format){
+    Log(LogLevel::Info,format);
+}
+
 
 void Logger::Log(LogLevel logLevel, const char* format, ...) {
     if (logLevel >= m_logLevel) {

@@ -9,16 +9,15 @@
 #include <core/WorkerManager.h>
 #include <core/DohnaServerGlobal.h>
 
+namespace dohna{
 
 int DohnaServer::serverDaemonize(){
-
-
     //(1)创建守护进程的第一步，fork()一个子进程出来
     switch (fork())  //fork()出来这个子进程才会成为咱们这里讲解的master进程；
     {
     case -1:
         //创建子进程失败
-        Logger::getInstance()<<"failed to daemonize server";
+        Logger::getInstance().LogError("failed to daemonize server");
         return -1;
     case 0:
         //子进程，走到这里直接break;
@@ -35,7 +34,7 @@ int DohnaServer::serverDaemonize(){
     //(2)脱离终端，终端关闭，将跟此子进程无关
     if (setsid() < 0)  
     {
-        Logger::getInstance()<<"failed to daemonize server";
+        Logger::getInstance().LogError("failed to daemonize server");
         return -1;
     }
 
@@ -59,15 +58,12 @@ int DohnaServer::serverDaemonize(){
 }
 
 
-
-
-
-
 DohnaServer::DohnaServer(){
 
     //载入日志
     Logger &logger = Logger::getInstance();
-    logger.Log(LogLevel::Info,"Server started\n");
+    logger.Log(LogLevel::Info,"");
+    logger.Log(LogLevel::Info,"Server started");
 
     //载入配置
     ConfigManager& cm = ConfigManager::getInstance();
@@ -77,7 +73,6 @@ DohnaServer::DohnaServer(){
     }
     //变为守护进程
     if(cm.getInt("daemon")){
-        // std::cout<<"daemonized";
         switch (serverDaemonize())
         {
         case -1:
@@ -104,10 +99,11 @@ DohnaServer::DohnaServer(){
         logger.Log(LogLevel::Error,"failed to daemonize");
     }
 
-    
-
 }
 
 DohnaServer::~DohnaServer()
 {
+}
+
+
 }

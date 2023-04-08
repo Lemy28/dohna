@@ -15,6 +15,8 @@ int g_environlen = 0;
 
 pid_t dn_pid;
 
+using namespace dohna;
+
 int main(const int argc,char* *argv){
 
 
@@ -27,11 +29,6 @@ int main(const int argc,char* *argv){
     // sm.RegisterSignal(Signal(SIGINT,"SIGINT",[](int,siginfo_t *,void *){std::cout<<"Handling SIG_INT"<<std::endl;}));
     // sm.HandleSignals();
 
-    
-
-
-    std::cout<<"bye"<<std::endl;
-    sleep(999);
     return 0;
     
 
