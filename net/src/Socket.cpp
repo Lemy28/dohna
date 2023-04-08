@@ -128,5 +128,15 @@ bool Socket::setReusePort()
     }
     return true;
 }
+//πÿ±’¡¨Ω”
+bool Socket::close()
+{
+    if (::close(m_sockfd) == -1)
+    {
+        return false;
+    }
+    return true;
+}
+
 
 }

@@ -14,7 +14,7 @@ class Socket
 public:
     Socket();
     Socket(int sockfd) : m_sockfd(sockfd) {}
-    ~Socket() { if (m_sockfd != -1) close(m_sockfd); }
+    ~Socket() = default;
 
     int getFd() const { return m_sockfd; }
 
@@ -29,6 +29,8 @@ public:
     bool sendData(const void* buf, int len);
     // 6. 接收数据
     int recvData(void* buf, int len);
+    // 7. 关闭连接
+    bool close();
 
     bool setNonBlocking();
     bool setBlocking();
