@@ -8,12 +8,17 @@
 #include <cstring>//strlen
 #include <sys/uio.h>//ssize_t, readv, writev
 
+namespace dohna{
+
+
+
 class Buffer{
 public:
     Buffer(int size = 1024) : m_buffer(size), m_readIndex(0), m_writeIndex(0) {}
     ~Buffer() = default;
-    //获取buffer的首地址
 
+    //获取回车换行符的位置
+    const char* findCRLF()const;
 
     //获取可读数据的大小
     std::size_t readableBytes() const { return m_writeIndex - m_readIndex; }
@@ -65,8 +70,14 @@ private:
     char* begin() { return &*m_buffer.begin(); }
     const char* begin() const { return &*m_buffer.begin(); }
 
+    static const char kCRLF[];
+
     std::vector<char> m_buffer;
     std::atomic<std::size_t> m_readIndex;
     std::atomic<std::size_t> m_writeIndex;
 
 };
+
+
+
+}   // namespace dohna
