@@ -5,6 +5,9 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <tools/Logger.h>
+//tcpnoDelay
+#include <netinet/tcp.h>
+
 namespace dohna{
 
 Socket::Socket(){ 
@@ -59,40 +62,8 @@ int Socket::accept(struct ::sockaddr_in* client_addr)
     }
     return connfd;
 }
-//发送数据
-bool Socket::sendData(const void* buf, int len)
-{
-    int send_len = 0;
-    while (send_len < len)
-    {
-        int ret = send(m_sockfd, (char*) buf + send_len, len - send_len, 0);
-        if (ret == -1)
-        {
-            return false;
-        }
-        send_len += ret;
-    }
-    return true;
-}
-//接收数据
-int Socket::recvData(void* buf, int len)
-{
-    int recv_len = 0;
-    while (recv_len < len)
-    {
-        int ret = recv(m_sockfd, (char*) buf + recv_len, len - recv_len, 0);
-        if (ret == -1)
-        {
-            return -1;
-        }
-        else if (ret == 0)
-        {
-            return 0;
-        }
-        recv_len += ret;
-    }
-    return recv_len;
-}
+
+
 
 bool Socket::setNonBlocking()
 {
@@ -132,6 +103,44 @@ bool Socket::setReusePort()
 bool Socket::close()
 {
     if (::close(m_sockfd) == -1)
+    {
+        return false;
+    }
+    return true;
+}
+
+//设置keepalive
+bool Socket::setKeepAlive()
+{
+    int opt = 1;
+    if(setsockopt(m_sockfd, SOL_SOCKET, SO_KEEPALIVE, &opt, sizeof(opt))<0)
+    {
+        return false;
+    }
+    return true;
+}
+
+//设置nodelay
+bool Socket::setTcpNoDelay()
+{
+    int opt = 1;
+    if(setsockopt(m_sockfd, IPPROTO_TCP, TCP_NODELAY, &opt, sizeof(opt))<0)
+    {
+        return false;
+    }
+    return true;
+
+}
+
+//设置linger,当socket关闭时，如果socket缓冲区还有数据，会等待一段时间，直到数据发送完毕
+bool Socket::setLinger()
+{
+    struct linger opt;
+    opt.l_onoff = 1;
+
+    //等待时间为1秒
+    opt.l_linger = 1;
+    if(setsockopt(m_sockfd, SOL_SOCKET, SO_LINGER, &opt, sizeof(opt))<0)
     {
         return false;
     }

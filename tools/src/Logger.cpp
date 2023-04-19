@@ -34,7 +34,7 @@ void Logger::Log(LogLevel logLevel, const char* format, ...) {
             ofs << GetFormattedTime() << " [" << LogLevelString(logLevel) << "] " << buffer << std::endl;
         }
         else{
-            std::cerr<<"Error:failed to open log file"<<std::endl;
+            exit(EXIT_FAILURE);
         }
         ofs.close();
     }

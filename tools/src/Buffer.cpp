@@ -20,8 +20,13 @@ const char* Buffer::findCRLF() const {
     return crlf == m_writeIndex + m_buffer.data() ? nullptr : crlf;
 }
 
+//savedErrno是一个指针，指向一个int类型的变量，这个变量用来保存errno,为什么要这样做呢？
+//因为errno是一个宏，它的值是一个全局变量，如果在多线程的情况下，多个线程都在调用readFd函数，那么errno的值就会被覆盖
+//但是如果使用savedErrno这个指针，那么每个线程都有自己的errno变量，就不会被覆盖了
+//虽然我们是多进程的服务器，但是为了使这个类更加通用，我们还是使用savedErrno这个指针
 
-ssize_t Buffer::readFd(int fd, int* savedErrno) {
+//缓冲区只能处理65536个字节的数据
+std::pair<int,bool> Buffer::readFd(int fd) {
     //为了避免多次调用read系统调用，我们使用readv系统调用,利用了cache的思想
     char extrabuf[65536];
     struct iovec vec[2];
@@ -32,32 +37,32 @@ ssize_t Buffer::readFd(int fd, int* savedErrno) {
     vec[1].iov_len = sizeof(extrabuf);
     const std::size_t n = readv(fd, vec, 2);
     if (n < 0) {
-        *savedErrno = errno;
+        return {n,false};
     }
-    else if (static_cast<std::size_t>(n) <= writable) {
-        //如果读取的数据小于可写的数据，说明读取的数据都是写入到buffer中的
+    else if (n <= writable) {
         m_writeIndex += n;
     }
     else {
-        //如果读取的数据大于可写的数据，说明读取的数据中有一部分写入到了buffer中，有一部分写入到了extrabuf中
         m_writeIndex = m_buffer.size();
         append(extrabuf, n - writable);
     }
-    return n;
+    return {n,true};
 }
 
-ssize_t Buffer::writeFd(int fd, int* savedErrno) {
-    std::size_t n = readableBytes();
-    ssize_t nwrite = write(fd, peek(), n);
-    if (nwrite < 0) {
-        //如果写入失败，保存错误码
-        *savedErrno = errno;
+//writeFd函数的功能是将缓冲区中的数据写入到文件描述符fd中
+std::pair<int,bool> Buffer::writeFd(int fd){
+    ssize_t n = 0;
+    while (readableBytes() > 0) {
+        int res = write(fd, m_readIndex + m_buffer.data(), readableBytes());
+        if (res < 0) {
+            return {n,false};
+        }
+        else{
+        n += res;
+        m_readIndex += res;
+        }
     }
-    else {
-        //如果写入成功，更新已读取的数据的大小
-        m_readIndex += nwrite;
-    }
-    return nwrite;
+    return {n,true};
 }
 
 

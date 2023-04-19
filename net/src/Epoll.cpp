@@ -65,18 +65,6 @@ bool Epoll::del(int fd)
 
 int Epoll::wait(int timeout)
 {   
-    //检查参数是否合法
-    if(m_events.size() <= 0)
-    {
-        Logger::getInstance().LogError("m_events size is 0");
-        m_events.resize(1024);
-    }
-    if(m_events.data() == nullptr)
-    {
-        Logger::getInstance().LogError("m_events data is nullptr");
-        return -1;
-    }
-
     int ret = epoll_wait(m_epollfd, m_events.data(), m_events.size(), timeout);
     if (ret == -1)
     {
@@ -84,15 +72,9 @@ int Epoll::wait(int timeout)
         exit(EXIT_FAILURE);
         return -1;
     }
-    if (ret == 0)
-    {
-        Logger::getInstance().LogInfo("epoll_wait timeout");
-        return 0;
-    }
     if (ret == m_events.size())
     {
         m_events.resize(m_events.size() * 2);
     }
     return ret;
 }
-

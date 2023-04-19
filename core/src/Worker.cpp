@@ -12,7 +12,7 @@ namespace dohna{
 
 
 
-Worker::Worker():m_listenPort(0),m_epoll(),m_listenSocket()
+Worker::Worker():m_port(0),m_epoll(),m_listenFd(socket(AF_INET,SOCK_STREAM,0))
 {
     Logger &logger = Logger::getInstance();
     logger.Log(LogLevel::Info,"Worker process started with pid:%d",getpid());
@@ -26,7 +26,10 @@ Worker::Worker():m_listenPort(0),m_epoll(),m_listenSocket()
         logger.LogError("ConfigManager:failed to load file:'/etc/dohna.conf' ");
         exit(-1);
     }
-    m_listenPort = cm.getInt("listenPort");
+    m_port = cm.getInt("listenPort");
+
+
+
     //设置信号处理函数
     // signal(SIGINT,signalHandler);
     // signal(SIGTERM,signalHandler);
@@ -39,16 +42,13 @@ Worker::~Worker()
 {
 
 }
-//使用epoll来处理网络连接请求
-void Worker::run(){
 
-    if(m_listenPort == 0){
-        Logger::getInstance().Log(LogLevel::Error,"Worker %d listen port is 0",getpid());
-        exit(-1);
-    }
 
+//初始化监听socket
+void Worker::init(){
+    Socket ListenFd(m_listenFd);
     //设置监听地址为可重用
-    if(!m_listenSocket.setReuseAddr()){
+    if(!ListenFd.setReuseAddr()){
         Logger::getInstance().Log(LogLevel::Error,"Worker %d set reuseaddr failed:",getpid(),strerror(errno));
         exit(-1);
     }
@@ -56,89 +56,182 @@ void Worker::run(){
         Logger::getInstance().Log(LogLevel::Debug,"Worker %d set reuseaddr success",getpid());
     }
     //设置监听端口为可重用
-    if(!m_listenSocket.setReusePort()){
+    if(!ListenFd.setReusePort()){
         Logger::getInstance().Log(LogLevel::Error,"Worker %d set reuseport failed",getpid());
         exit(-1);
     }
     else{
         Logger::getInstance().Log(LogLevel::Debug,"Worker %d set reuseport success",getpid());
     }
-
-
-    // //设置监听套接字为非阻塞
-    // if(!m_listenSocket.setNonBlocking()){
+    //设置监听套接字为非阻塞是否有必要？
+    //因为epoll是水平触发的，如果不设置为非阻塞，那么当有新连接到来时，epoll会一直触发，直到accept成功
+    //如果设置为非阻塞，那么当有新连接到来时，epoll只会触发一次，accept成功后，epoll就不会再触发了
+    //所以这里设置为非阻塞
+    // if(!ListenFd.setNonBlocking()){
     //     Logger::getInstance().Log(LogLevel::Error,"Worker %d set nonblocking failed",getpid());
     //     exit(-1);
     // }
 
+    //设置linger选项
+    //给监听套接字设置linger选项有必要吗？
+    //因为监听套接字是服务器的，服务器一般不会关闭，所以这里设置linger选项没有必要
+    // if(!ListenFd.setLinger()){
+    //     Logger::getInstance().Log(LogLevel::Error,"Worker %d set linger failed",getpid());
+    //     exit(-1);
+    // }
+    // else{
+    //     Logger::getInstance().Log(LogLevel::Debug,"Worker %d set linger success",getpid());
+    // }
+
 
     //绑定端口
-    if(!m_listenSocket.bind(m_listenPort)){
-        Logger::getInstance().Log(LogLevel::Error,"Worker %d bind port:%d failed:%s",getpid(),m_listenPort,strerror(errno));
-        exit(EXIT_FAILURE);
+    if(!ListenFd.bind(m_port)){
+        Logger::getInstance().Log(LogLevel::Error,"Worker %d bind port:%d failed:%s",getpid(),m_port,strerror(errno));
+        exit(-1);
     }
     else{
-        Logger::getInstance().Log(LogLevel::Info,"Worker %d bind port:%d success",getpid(),m_listenPort);
+        Logger::getInstance().Log(LogLevel::Debug,"Worker %d bind port:%d success",getpid(),m_port);
     }
-    //监听端口
-    if(!m_listenSocket.listen()){
-        Logger::getInstance().Log(LogLevel::Error,"Worker %d listen port:%d failed",getpid(),m_listenPort);
-        exit(EXIT_FAILURE);
-    }else{
-        Logger::getInstance().Log(LogLevel::Info,"Worker %d is listening port:%d",getpid(),m_listenPort);
+    //开始监听
+    if(!ListenFd.listen()){
+        Logger::getInstance().Log(LogLevel::Error,"Worker %d listen failed:%s",getpid(),strerror(errno));
+        exit(-1);
     }
-
+    else{
+        Logger::getInstance().Log(LogLevel::Debug,"Worker %d listen success",getpid());
+    }
     //将监听套接字加入epoll
-    if(!m_epoll.add(m_listenSocket.getFd(),EPOLLIN)){
-        Logger::getInstance().Log(LogLevel::Error,"Worker %d add listen socket to epoll failed",getpid());
-        exit(EXIT_FAILURE);
-    }else{
-        Logger::getInstance().Log(LogLevel::Debug,"Worker %d add listen socket to epoll success",getpid());
+    if(!m_epoll.add(m_listenFd,EPOLLIN)){
+        Logger::getInstance().Log(LogLevel::Error,"Worker %d add listen fd to epoll failed:%s",getpid(),strerror(errno));
+        exit(-1);
     }
+    else{
+        Logger::getInstance().Log(LogLevel::Debug,"Worker %d add listen fd to epoll success",getpid());
+    }
+}
 
-    //使用epoll来处理网络连接请求
+//使用epoll来处理网络连接请求
+void Worker::run(){
+
+    int timeout = -1;
+    init();
+    Logger &logger = Logger::getInstance();
     while(true){
-        int count =  m_epoll.wait();
-        for(int i = 0;i < count;i++){
-            if(m_epoll.getEvents()[i].data.fd == m_listenSocket.getFd()){
-                //有新的连接请求,准备一个客户端地址结构体
-                struct ::sockaddr_in clientAddr;
-                Socket clientFd = m_listenSocket.accept((struct sockaddr_in*)&clientAddr);
-                if(clientFd.getFd() == -1){
-                    Logger::getInstance().Log(LogLevel::Error,"accept error");
-                    continue;
+
+        timeout = m_timer.getNextTick();
+        //epoll_wait
+        int n = m_epoll.wait(timeout);
+        //处理事件
+        for(int i = 0;i < n;i++){
+            int fd = m_epoll.getEventFd(i);
+            uint32_t events = m_epoll.getEvents(i);
+            if(fd == m_listenFd){
+                //处理新连接
+                if(events & EPOLLIN){
+                    logger.Log(LogLevel::Debug,"Worker %d accept new connection",getpid());
+                    acceptConnection();
                 }
-                //将客户端套接字加入epoll
-                m_epoll.add(clientFd.getFd(),EPOLLIN);
-                //
-                clientFd.sendData("hello",5);
-
-
             }
             else{
-                //有数据到来
-                Socket clientFd = m_epoll.getEvents()[i].data.fd;
-                char buf[1024];
-                int n = clientFd.recvData(buf,1024);
-                if(n == 0){
-                    //客户端关闭连接
-                    m_epoll.del(clientFd.getFd());
-                    close(clientFd.getFd());
+                //处理已连接的客户端
+                if(events & EPOLLIN){
+                    logger.Log(LogLevel::Debug,"Worker %d handle client request",getpid());
+                    handleClientRead(m_connections[fd]);
                 }
-                else if(n == -1){
-                    Logger::getInstance().Log(LogLevel::Error,"worker process %d:read error",getpid());
-                    m_epoll.del(clientFd.getFd());
-                    close(clientFd.getFd());
+                else if(events & EPOLLOUT){
+                    logger.Log(LogLevel::Debug,"Worker %d handle client response",getpid());
+                    handleClientWrite(m_connections[fd]);
+                }
+                else if(events & (EPOLLERR|EPOLLHUP|EPOLLRDHUP)) {
+                    logger.Log(LogLevel::Debug,"Worker %d handle client error",getpid());
+                    closeConnection(m_connections[fd]);
                 }
                 else{
-                    //将数据写回客户端
-                    clientFd.sendData(buf,n);
+                    logger.Log(LogLevel::Debug,"Worker %d handle client unknown",getpid());
                 }
             }
         }
-
     }
 
+}
+
+//处理客户端的读请求
+void Worker::handleClientRead(HttpConnection &conn){
+    //读取客户端的请求
+    //本来想用结构化绑定，但是没办法升级到c++17，所以只能用pair了
+    auto res = conn.recv();
+    if(res.first < 0){
+        Logger::getInstance().Log(LogLevel::Error,"Worker %d read client request failed:%s",getpid(),strerror(errno));
+        closeConnection(conn);
+        return;
+    }
+    else if(res.first == 0){
+        Logger::getInstance().Log(LogLevel::Debug,"Worker %d client close connection",getpid());
+        closeConnection(conn);
+        return;
+    }
+    else{
+        Logger::getInstance().Log(LogLevel::Debug,"Worker %d read client request success",getpid());
+    }
+
+    conn.handle();
+
+    if(conn.isKeepAlive()){
+        //如果是长连接，那么就继续监听读事件
+        if(!m_epoll.mod(conn.getFd(),EPOLLIN)){
+            Logger::getInstance().Log(LogLevel::Error,"Worker %d mod client fd to epoll failed:%s",getpid(),strerror(errno));
+            closeConnection(conn);
+            return;
+        }
+    }
+    else{
+        //如果是短连接，那么就关闭连接
+        closeConnection(conn);
+    }
+ 
+}
+
+//处理客户端的写请求
+void Worker::handleClientWrite(HttpConnection &conn){
+    return;
+}
+
+//处理新连接
+void Worker::acceptConnection(){
+    struct sockaddr_in clientAddr;
+    socklen_t clientAddrLen = sizeof(clientAddr);
+    int clientFd = accept(m_listenFd,(struct sockaddr*)&clientAddr,&clientAddrLen);
+    if(clientFd < 0){
+        return;
+    }
+
+    Socket clientSocket(clientFd);
+    //设置客户端套接字的linger选项
+    if(!clientSocket.setLinger()){
+        Logger::getInstance().Log(LogLevel::Error,"Worker %d set client fd linger failed:%s",getpid(),strerror(errno));
+        close(clientFd);
+        return;
+    }
+    //加入到epoll
+    if(!m_epoll.add(clientFd,EPOLLIN)){
+        Logger::getInstance().Log(LogLevel::Error,"Worker %d add client fd to epoll failed:%s",getpid(),strerror(errno));
+        close(clientFd);
+        return;
+    }
+    else{
+        Logger::getInstance().Log(LogLevel::Debug,"Worker %d add client fd to epoll success",getpid());
+    }
+
+    //加入到连接池
+    m_connections[clientFd].init(clientFd,clientAddr);
+
+}
+
+//关闭连接
+void Worker::closeConnection(HttpConnection &conn){
+    m_epoll.del(conn.getFd());
+    m_connections.erase(conn.getFd());
+    conn.close();
 }
 
 }//end namespace dohna

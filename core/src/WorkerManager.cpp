@@ -29,7 +29,7 @@ void WorkerManager::createWorker()
                 Logger::getInstance().Log(LogLevel::Error,"Child process failed to reset sigset with pid:%d",getpid());
             }
                 Worker worker;
-                // Logger::getInstance().Log(LogLevel::Debug,"worker will run!!!");
+                Logger::getInstance().Log(LogLevel::Debug,"worker will run!!!");
                 worker.run();
             }
         else if (pid > 0) {

@@ -4,7 +4,7 @@
 #include <core/SignalManager.h>
 #include <signal.h>
 #include <sys/prctl.h>
-#include <core/DohnaServer.h>
+#include <net/DohnaServer.h>
 
 
 //全局变量，用于修改进程名

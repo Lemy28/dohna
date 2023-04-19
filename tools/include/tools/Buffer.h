@@ -62,9 +62,9 @@ public:
     void append(const Buffer &buffer) { append(buffer.peek(), buffer.readableBytes()); }
 
     //从fd中读取数据
-    ssize_t readFd(int fd, int* savedErrno);
+    std::pair<int,bool> readFd(int fd);
     //向fd中写入数据
-    ssize_t writeFd(int fd, int* savedErrno);   
+    std::pair<int,bool> writeFd(int fd);
 
 private:
     char* begin() { return &*m_buffer.begin(); }

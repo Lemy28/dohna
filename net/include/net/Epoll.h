@@ -14,7 +14,10 @@ public:
     bool mod(int fd, uint32_t events); 
     bool del(int fd);
     int wait(int timeout = -1);
-    struct epoll_event* getEvents() { return m_events.data(); }
+    uint32_t getEvents(int i) { return m_events[i].events; }
+    struct epoll_event getEvent(int i) { return m_events[i]; }
+    int getEventFd(int i) { return m_events[i].data.fd; }
+
 
 private:
     int m_epollfd = -1;

@@ -13,10 +13,26 @@ class HttpRequest
 
 public:
     enum class ParseState{
+        Unknow,
         ExpectRequestLine,
         ExpectHeaders,
         ExpectBody,
         GotAll
+    };
+
+    enum class HttpMethod{
+        Unknow,
+        GET,
+        POST,
+        HEAD,
+        PUT,
+        DELETE
+    };
+    enum class HttpCode{
+        Unknow,
+        Ok = 200,
+        BadRequest = 400,
+        NotFound = 404
     };
 
 
@@ -33,10 +49,23 @@ public:
     const std::string& getHeader(const std::string& key) const;
     const std::string& getMethod() const {return m_method;}
     const std::string& getVersion() const {return m_version;}
-
+    const std::string& getContentType() const;
+    const std::string& getContentLength() const;
+    const std::string& getServer() const;
+    const std::string& getDate() const;
+    const std::string& getLastModified() const;
+    const std::string& getHost() const;
+    const std::string& getAccept() const;
+    const std::string& getAcceptLanguage() const;
+    const std::string& getAcceptEncoding() const;
+    const std::string& getReferer() const;
+    const std::string& getConnection() const;
+    const std::string& getUpgradeInsecureRequests() const;
+    const std::string& getUserAgent() const;
 
     void reset();
     bool isKeepAlive() const;
+    static const std::string s_nullstr;
 
 private:
     ParseState m_state;
@@ -56,7 +85,7 @@ private:
     //½âÎöuri
     void parsePath();
 
-
+    void badRequest();
 
 
 

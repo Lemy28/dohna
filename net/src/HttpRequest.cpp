@@ -5,6 +5,8 @@
 
 namespace dohna{
 
+const std::string HttpRequest::s_nullstr = "";
+
 //根据头文件实现的HttpRequest类
 
 HttpRequest::HttpRequest(){
@@ -13,7 +15,7 @@ HttpRequest::HttpRequest(){
     m_version = "";
     m_path = "";
     m_body = "";
-
+    
     m_state = ParseState::ExpectRequestLine;
 
     //初始化请求头
@@ -51,7 +53,8 @@ bool HttpRequest::parseRequestLine(const std::string& line){
 
         return true;
     }
-
+    m_state = ParseState::Unknow;
+    // m_code = "400";
     return false;
 }
 
@@ -79,7 +82,6 @@ void HttpRequest::parseBody(const std::string& line){
     //暂时不处理请求体
 
 
-
 }
 
 //解析http请求
@@ -95,17 +97,16 @@ bool HttpRequest::parseRequest(Buffer& buffer){
         switch (m_state)
         {
         case ParseState::ExpectRequestLine:
-            if(!parseRequestLine(line)){
-                //解析请求行失败
-                Logger::getInstance().LogError("parseRequestLine error");
-                return false;
-            }
+            parseRequestLine(line);
             break;
         case ParseState::ExpectHeaders:
             parseHeaders(line);
             break;
         case ParseState::ExpectBody:
             parseBody(line);
+            break;
+        case ParseState::Unknow:
+            badRequest();
             break;
         default:
             break;
@@ -129,7 +130,7 @@ const std::string& HttpRequest::getHeader(const std::string& key) const{
     if(it != m_headers.end()){
         return it->second;
     }
-    return "";
+    return s_nullstr;
 }
 
 
@@ -139,7 +140,7 @@ void HttpRequest::parsePath(){
     //暂时不处理uri
 }
 
-//判断是否为长连接
+//判断是否为长连接，这里要求http版本为1.1，是因为http1.0默认为短连接，http1.1默认为长连接
 bool HttpRequest::isKeepAlive() const{
     if(m_headers.find("Connection") != m_headers.end()){
         return m_headers.find("Connection")->second == "keep-alive" && m_version == "HTTP/1.1";
@@ -156,5 +157,11 @@ void HttpRequest::reset(){
     m_headers.clear();
 
 }
+
+void HttpRequest::badRequest(){
+    m_state = ParseState::GotAll;
+}
+
+
 
 }//namespace dohna

@@ -21,7 +21,7 @@ public:
     void Log(LogLevel logLevel, const char* format, ...);
     void LogError(const char* format);
     void LogInfo(const char* format);
-
+    static std::string GetFormattedTime(); 
 
 
     Logger(const Logger&) = delete;
@@ -31,7 +31,6 @@ private:
     Logger(const std::string& logFile, LogLevel logLevel);
     ~Logger();
 
-    std::string GetFormattedTime(); 
 
     std::string LogLevelString(LogLevel logLevel);
 
